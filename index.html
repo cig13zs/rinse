@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rinse — wash the hidden data off a photo, in your browser</title>
+<meta name="description" content="Drop in a photo and see the GPS location, camera and timestamps hidden inside it, then download a clean copy with every trace removed. It never leaves your browser. No upload, no server, no account.">
+<meta property="og:title" content="Rinse">
+<meta property="og:description" content="See the hidden data in your photo — including where it was taken — then wipe it. Fully offline, nothing uploaded.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🚿</text></svg>">
+<style>
+  :root{
+    --bg:#fbfbfa; --panel:#fff; --ink:#18181b; --muted:#5d5d66; --line:#e6e6e3;
+    --accent:#0e7490; --accent-soft:#cffafe; --warn:#b91c1c; --warn-soft:#fee2e2;
+    --code:#f4f4f2; --shadow:0 1px 3px rgba(0,0,0,.06),0 12px 32px -12px rgba(0,0,0,.14);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0e0e10; --panel:#161619; --ink:#f2f2f3; --muted:#a1a1aa; --line:#26262b;
+      --accent:#22d3ee; --accent-soft:#0b2b31; --warn:#f87171; --warn-soft:#3a1414;
+      --code:#1b1b1f; --shadow:0 1px 3px rgba(0,0,0,.5),0 16px 40px -16px rgba(0,0,0,.7);
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:0 24px}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+
+  header{padding:80px 0 8px;text-align:center}
+  .eyebrow{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);background:var(--accent-soft);padding:5px 11px;border-radius:999px;font-weight:600}
+  h1{font-size:clamp(38px,7vw,58px);line-height:1.05;letter-spacing:-.03em;margin:20px 0 0;font-weight:700}
+  .tagline{font-size:clamp(17px,2.4vw,20px);color:var(--muted);margin:16px auto 0;max-width:32em}
+  .tagline strong{color:var(--ink)}
+
+  /* drop zone */
+  .drop{margin:40px auto 0;border:2px dashed var(--line);border-radius:16px;background:var(--panel);
+    padding:44px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .big{font-size:18px;font-weight:600}
+  .drop .sub{color:var(--muted);font-size:14px;margin-top:6px}
+  .drop input{display:none}
+
+  .result{margin:28px 0 0;display:none}
+  .result.show{display:block}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .prev{flex:0 0 auto;width:180px;height:180px;border-radius:12px;border:1px solid var(--line);
+    object-fit:cover;background:var(--code)}
+  .findings{flex:1 1 260px;min-width:260px}
+  .verdict{font-size:19px;font-weight:650;margin:2px 0 12px}
+  .verdict.bad{color:var(--warn)}
+  .verdict.good{color:var(--accent)}
+  .gpsbox{background:var(--warn-soft);border:1px solid var(--warn);border-radius:10px;padding:12px 14px;margin:0 0 14px}
+  .gpsbox .lbl{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--warn);font-weight:700}
+  .gpsbox .coords{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;margin:4px 0 8px}
+  table.meta{width:100%;border-collapse:collapse;font-size:14.5px}
+  table.meta td{padding:8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  table.meta td:first-child{color:var(--muted);width:42%;padding-right:14px}
+  .btn{display:inline-block;margin-top:18px;padding:12px 20px;border:0;border-radius:10px;font:inherit;
+    font-weight:600;font-size:15px;background:var(--ink);color:var(--bg);cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:default}
+  .after{margin-top:12px;font-size:14px;color:var(--muted)}
+  .after b{color:var(--accent)}
+
+  section{padding:44px 0;border-top:1px solid var(--line);margin-top:56px}
+  section.first{margin-top:64px}
+  h2{font-size:22px;letter-spacing:-.015em;margin:0 0 12px;font-weight:650}
+  p{margin:0 0 14px}
+  .muted{color:var(--muted)}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card h3{margin:0 0 6px;font-size:14.5px;font-weight:650}
+  .card p{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
+  footer{padding:44px 0 72px;text-align:center;color:var(--muted);font-size:14px}
+  .pillnote{display:inline-block;margin-top:22px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Free &amp; open source</span>
+  <h1>Rinse</h1>
+  <p class="tagline">Photos carry hidden data — where they were taken, on what camera, when.
+  Drop one in to see exactly what it's leaking, then download a clean copy. <strong>It never
+  leaves your browser.</strong></p>
+</header>
+
+<label class="drop" id="drop">
+  <div class="big">Drop a photo here, or click to choose</div>
+  <div class="sub">JPEG or PNG · nothing is uploaded · it all happens on this page</div>
+  <input type="file" id="file" accept="image/jpeg,image/png,image/*">
+</label>
+
+<div class="result" id="result">
+  <div class="row">
+    <img class="prev" id="prev" alt="your photo, shown locally">
+    <div class="findings">
+      <div class="verdict" id="verdict"></div>
+      <div id="gps"></div>
+      <table class="meta"><tbody id="metarows"></tbody></table>
+      <button class="btn" id="download">Download clean copy</button>
+      <div class="after" id="after"></div>
+    </div>
+  </div>
+</div>
+
+<section class="first">
+  <h2>Why this is different</h2>
+  <p class="muted">Most "remove EXIF online" tools upload your photo to their server to strip it —
+  a privacy tool that hands your private photo to a stranger. Rinse does the whole thing in your
+  own browser tab. The image never touches a network.</p>
+  <div class="grid">
+    <div class="card"><h3>Nothing is uploaded</h3><p>No server, no API, no account. Open the Network tab and watch — Rinse never makes a request.</p></div>
+    <div class="card"><h3>It shows you first</h3><p>Before you wipe anything, you see the actual GPS coordinates, camera and timestamps hiding in the file.</p></div>
+    <div class="card"><h3>Total wipe</h3><p>The clean copy is re-encoded from pixels only. Every EXIF, GPS, thumbnail and maker note is gone — not hidden, gone.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>How the wipe works</h2>
+  <p class="muted">Rinse draws your photo onto a blank canvas and re-encodes it. Metadata lives in
+  the file's headers, not in the pixels, so a fresh encode simply has none. That's also the one
+  tradeoff: JPEGs are re-compressed once (quality kept high), and the embedded colour profile is
+  dropped along with everything else. For sharing a photo online, that's exactly what you want.</p>
+</section>
+
+<footer>
+  <p>Runs entirely offline. MIT licensed. If it saved you from posting your home address,
+  you can <a href="https://ko-fi.com/jju1s">buy me a coffee</a>.</p>
+  <p class="pillnote">Your photos are yours. This page can't see them, and neither can I.</p>
+</footer>
+
+</div>
+
+<script src="exif.js"></script>
+<script>
+(function () {
+  var drop = document.getElementById('drop');
+  var fileIn = document.getElementById('file');
+  var result = document.getElementById('result');
+  var prev = document.getElementById('prev');
+  var verdict = document.getElementById('verdict');
+  var gpsEl = document.getElementById('gps');
+  var rows = document.getElementById('metarows');
+  var dlBtn = document.getElementById('download');
+  var after = document.getElementById('after');
+  var current = null;
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
+  });
+  fileIn.addEventListener('change', function () { if (fileIn.files[0]) handle(fileIn.files[0]); });
+
+  function esc(s) { return String(s).replace(/[<>&"]/g, function (c) {
+    return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
+
+  function handle(file) {
+    if (!/^image\//.test(file.type)) return;
+    current = file;
+    prev.src = URL.createObjectURL(file);
+    after.textContent = '';
+    dlBtn.disabled = false;
+    dlBtn.textContent = 'Download clean copy';
+
+    var reader = new FileReader();
+    reader.onload = function () {
+      var info = RinseExif.parse(new Uint8Array(reader.result));
+      render(file, info);
+      result.classList.add('show');
+      result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function render(file, info) {
+    rows.innerHTML = '';
+    gpsEl.innerHTML = '';
+    var f = info.fields || {};
+    var hasAny = info.hasExif && (info.gps || Object.keys(f).length);
+
+    if (info.gps) {
+      verdict.className = 'verdict bad';
+      verdict.textContent = 'This photo has your location in it.';
+    } else if (hasAny) {
+      verdict.className = 'verdict bad';
+      verdict.textContent = 'This photo carries hidden metadata.';
+    } else {
+      verdict.className = 'verdict good';
+      verdict.textContent = info.hasExif ? 'Only harmless metadata found.' : 'No EXIF metadata found.';
+    }
+
+    if (info.gps) {
+      var ll = info.gps.lat + ', ' + info.gps.lon;
+      gpsEl.innerHTML = '<div class="gpsbox"><div class="lbl">GPS location — where it was taken</div>' +
+        '<div class="coords">' + esc(ll) + '</div>' +
+        '<a href="https://www.openstreetmap.org/?mlat=' + encodeURIComponent(info.gps.lat) +
+        '&mlon=' + encodeURIComponent(info.gps.lon) + '#map=16/' +
+        encodeURIComponent(info.gps.lat) + '/' + encodeURIComponent(info.gps.lon) +
+        '" target="_blank" rel="noopener">See this spot on a map →</a></div>';
+    }
+
+    var labels = { Make: 'Camera make', Model: 'Camera model', DateTimeOriginal: 'Taken',
+      DateTime: 'Modified', Software: 'Edited with', Orientation: 'Orientation' };
+    var order = ['Make', 'Model', 'DateTimeOriginal', 'DateTime', 'Software', 'Orientation'];
+    order.forEach(function (k) {
+      if (f[k] !== undefined && f[k] !== '') addRow(labels[k], f[k]);
+    });
+    addRow('File size', fmtBytes(file.size));
+    if (info.hasExif) addRow('Metadata block', fmtBytes(info.exifBytes) + ' — will be removed');
+  }
+
+  function addRow(k, v) {
+    var tr = document.createElement('tr');
+    var td1 = document.createElement('td'); td1.textContent = k;
+    var td2 = document.createElement('td'); td2.textContent = v;
+    tr.appendChild(td1); tr.appendChild(td2); rows.appendChild(tr);
+  }
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(2) + ' MB';
+  }
+
+  dlBtn.addEventListener('click', function () {
+    if (!current) return;
+    dlBtn.disabled = true;
+    dlBtn.textContent = 'Cleaning…';
+    var img = new Image();
+    var url = URL.createObjectURL(current);
+    img.onload = function () {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      var isPng = current.type === 'image/png';
+      c.toBlob(function (blob) {
+        if (!blob) { dlBtn.textContent = 'Could not clean this file'; return; }
+        var name = (current.name || 'photo').replace(/\.[^.]+$/, '') + '-clean.' + (isPng ? 'png' : 'jpg');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        dlBtn.disabled = false;
+        dlBtn.textContent = 'Download clean copy';
+        after.innerHTML = 'Saved <b>' + esc(name) + '</b> — ' + fmtBytes(blob.size) +
+          ', <b>0 bytes of metadata</b>. The original on your disk is untouched.';
+      }, isPng ? 'image/png' : 'image/jpeg', 0.95);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); dlBtn.textContent = 'Could not read this image'; };
+    img.src = url;
+  });
+})();
+</script>
+</body>
+</html>
