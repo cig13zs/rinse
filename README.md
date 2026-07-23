@@ -3,6 +3,10 @@
 See the hidden data in a photo — including where it was taken — then wash it off.
 It never leaves your browser.
 
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-buy_me_a_coffee-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/jju1s)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Tests](https://img.shields.io/github/actions/workflow/status/cig13zs/rinse/test.yml?style=flat-square&label=tests)](https://github.com/cig13zs/rinse/actions)
+
 Every photo your phone takes carries metadata: GPS coordinates, the camera, the
 exact time, sometimes the editing app. Post it anywhere and that rides along.
 Rinse reads it, shows it to you plainly, and hands back a clean copy with all of
