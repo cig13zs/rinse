@@ -84,4 +84,13 @@ node exif.test.js
 - **It reads the scary fields, not all 400 EXIF tags.** The download strips
   everything regardless; the on-screen readout just covers what matters.
 
+## More tools
+
+- **[Carryover](https://github.com/cig13zs/carryover)** — AI chat context transfer for ChatGPT, DeepSeek & Grok
+- **[Invisibles](https://github.com/cig13zs/invisibles)** — reveal & strip hidden Unicode from text
+- **[Return Google Cache](https://github.com/cig13zs/return-google-cache)** — put the Cached link back on Google results
+- **[Return 100 Results](https://github.com/cig13zs/return-100-results)** — browse ~100 Google results as one page
+
+All free, all offline, all open source. [More →](https://github.com/cig13zs/About-Me)
+
 MIT licensed. Do what you like with it.
