@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rinse — wash the hidden data off a photo, in your browser</title>
+<title>Rinse: wash the hidden data off a photo, in your browser</title>
 <meta name="description" content="Drop in a photo and see the GPS location, camera and timestamps hidden inside it, then download a clean copy with every trace removed. It never leaves your browser. No upload, no server, no account.">
 <meta property="og:title" content="Rinse">
-<meta property="og:description" content="See the hidden data in your photo — including where it was taken — then wipe it. Fully offline, nothing uploaded.">
+<meta property="og:description" content="See the hidden data in your photo, including where it was taken, then wipe it. Fully offline, nothing uploaded.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🚿</text></svg>">
 <style>
@@ -89,7 +89,7 @@
 <header>
   <span class="eyebrow">Free &amp; open source</span>
   <h1>Rinse</h1>
-  <p class="tagline">Photos carry hidden data — where they were taken, on what camera, when.
+  <p class="tagline">Photos carry hidden data: where they were taken, on what camera, when.
   Drop one in to see exactly what it's leaking, then download a clean copy. <strong>It never
   leaves your browser.</strong></p>
 </header>
@@ -115,13 +115,13 @@
 
 <section class="first">
   <h2>Why this is different</h2>
-  <p class="muted">Most "remove EXIF online" tools upload your photo to their server to strip it —
-  a privacy tool that hands your private photo to a stranger. Rinse does the whole thing in your
-  own browser tab. The image never touches a network.</p>
+  <p class="muted">Most "remove EXIF online" tools upload your photo to their server to strip it,
+  which means handing a stranger the exact file you were worried about. Rinse does the whole thing
+  in your own browser tab. The image never touches a network.</p>
   <div class="grid">
-    <div class="card"><h3>Nothing is uploaded</h3><p>No server, no API, no account. Open the Network tab and watch — Rinse never makes a request.</p></div>
+    <div class="card"><h3>Nothing is uploaded</h3><p>No server, no API, no account. Open the Network tab and watch. Rinse never makes a request.</p></div>
     <div class="card"><h3>It shows you first</h3><p>Before you wipe anything, you see the actual GPS coordinates, camera and timestamps hiding in the file.</p></div>
-    <div class="card"><h3>Total wipe</h3><p>The clean copy is re-encoded from pixels only. Every EXIF, GPS, thumbnail and maker note is gone — not hidden, gone.</p></div>
+    <div class="card"><h3>Total wipe</h3><p>The clean copy is re-encoded from pixels only. Every EXIF, GPS, thumbnail and maker note is gone.</p></div>
   </div>
 </section>
 
@@ -130,15 +130,15 @@
   <p class="muted">Rinse draws your photo onto a blank canvas and re-encodes it. Metadata lives in
   the file's headers, not in the pixels, so a fresh encode simply has none. That's also the one
   tradeoff: JPEGs are re-compressed once (quality kept high), and the embedded colour profile is
-  dropped along with everything else. For sharing a photo online, that's exactly what you want.</p>
+  dropped along with everything else. For a photo you are about to post, that is fine.</p>
 </section>
 
 <footer>
   <a class="kofi" href="https://ko-fi.com/jju1s" target="_blank" rel="noopener">☕ Support Rinse on Ko-fi</a>
-  <p>Runs entirely offline. MIT licensed &mdash; free, and it stays free. There is no paid tier.
-  If Rinse saved you from posting your home address, a coffee keeps these tools coming:
+  <p>Runs entirely offline. MIT licensed.
+  If it saved you from posting your home address, there is a tip jar at
   <a href="https://ko-fi.com/jju1s">ko-fi.com/jju1s</a>.</p>
-  <p class="pillnote">Your photos are yours. This page can't see them, and neither can I.</p>
+  <p class="pillnote">Nothing on this page can see your photos.</p>
 </footer>
 
 </div>
@@ -208,7 +208,7 @@
 
     if (info.gps) {
       var ll = info.gps.lat + ', ' + info.gps.lon;
-      gpsEl.innerHTML = '<div class="gpsbox"><div class="lbl">GPS location — where it was taken</div>' +
+      gpsEl.innerHTML = '<div class="gpsbox"><div class="lbl">GPS location, where it was taken</div>' +
         '<div class="coords">' + esc(ll) + '</div>' +
         '<a href="https://www.openstreetmap.org/?mlat=' + encodeURIComponent(info.gps.lat) +
         '&mlon=' + encodeURIComponent(info.gps.lon) + '#map=16/' +
@@ -223,7 +223,7 @@
       if (f[k] !== undefined && f[k] !== '') addRow(labels[k], f[k]);
     });
     addRow('File size', fmtBytes(file.size));
-    if (info.hasExif) addRow('Metadata block', fmtBytes(info.exifBytes) + ' — will be removed');
+    if (info.hasExif) addRow('Metadata block', fmtBytes(info.exifBytes) + ', will be removed');
   }
 
   function addRow(k, v) {
@@ -261,7 +261,7 @@
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
         dlBtn.disabled = false;
         dlBtn.textContent = 'Download clean copy';
-        after.innerHTML = 'Saved <b>' + esc(name) + '</b> — ' + fmtBytes(blob.size) +
+        after.innerHTML = 'Saved <b>' + esc(name) + '</b> ' + fmtBytes(blob.size) +
           ', <b>0 bytes of metadata</b>. The original on your disk is untouched.';
       }, isPng ? 'image/png' : 'image/jpeg', 0.95);
     };

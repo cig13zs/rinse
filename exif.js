@@ -1,16 +1,12 @@
 /*
- * Rinse — minimal EXIF reader.
+ * Minimal EXIF reader. Pulls GPS, camera make/model, timestamps and editing
+ * software out of a JPEG's APP1 block. Not a full EXIF library.
  *
- * Pulls only the human-scary fields out of a JPEG's APP1/EXIF block:
- * GPS location, camera make/model, timestamps, editing software. It is
- * deliberately NOT a full EXIF library — a privacy tool needs to answer
- * "what does this leak about me" and nothing more.
+ * Never throws on malformed input: a truncated file degrades to { hasExif }
+ * plus whatever fields parsed, rather than killing the page.
  *
- * It never throws on malformed input: a broken or truncated file degrades
- * to { hasExif } / partial fields rather than crashing the page.
- *
- * Works in the browser (window.RinseExif) and in Node (require) so the
- * same parser the page ships is the one the test exercises.
+ * Browser (window.RinseExif) and Node (require), so the test runs the same
+ * parser the page ships.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();

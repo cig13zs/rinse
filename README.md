@@ -1,96 +1,88 @@
 # Rinse
 
-See the hidden data in a photo — including where it was taken — then wash it off.
-It never leaves your browser.
+Shows you the metadata hiding in a photo, then hands back a copy with none of
+it. Runs entirely in your browser tab.
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-buy_me_a_coffee-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/jju1s)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Tests](https://img.shields.io/github/actions/workflow/status/cig13zs/rinse/test.yml?style=flat-square&label=tests)](https://github.com/cig13zs/rinse/actions)
 
-Every photo your phone takes carries metadata: GPS coordinates, the camera, the
-exact time, sometimes the editing app. Post it anywhere and that rides along.
-Rinse reads it, shows it to you plainly, and hands back a clean copy with all of
-it removed.
+Phones write a lot into a photo file. GPS coordinates, camera make and model,
+the exact time it was taken, often the app that edited it. All of that travels
+with the file when you post it somewhere.
 
-**It makes no network requests. There is nothing to upload and nothing to sign up for.**
+Most of the "remove EXIF online" tools upload your photo to a server to strip
+it, which means handing a stranger the exact file you were worried about. Rinse
+does the whole thing locally. Open the Network tab and watch: it never opens a
+connection.
 
-## Why not one of the hundred other EXIF removers
-
-Most "remove EXIF online" tools upload your photo to a server to strip it — a
-privacy tool that asks you to hand a stranger the exact photo you were worried
-about. Rinse does the whole thing in your own browser tab. Open the Network tab
-and watch: it never opens a connection.
-
-And it shows you first. Before you wipe anything you see the actual GPS
-coordinates with a link to that spot on a map, the camera make and model, and the
-timestamps. The scary part is what convinces people to bother.
-
-## How the wipe works
-
-The clean copy is re-drawn from pixels onto a fresh canvas and re-encoded.
-Metadata lives in the file's headers, not in the pixels, so a new encode simply
-has none — no EXIF, no GPS, no embedded thumbnail, no maker notes. Not hidden,
-gone.
-
-The one honest tradeoff: a JPEG is re-compressed once (quality kept high at 0.95),
-and the embedded colour profile is dropped along with everything else. For a
-photo you're about to post online, that is exactly what you want. PNGs re-encode
-losslessly.
+It also shows you the data before wiping it. You get the actual coordinates with
+a link to that spot on a map, the camera, and the timestamps. Seeing it is
+usually what convinces people to bother.
 
 ## Use it
 
-Open [`index.html`](index.html) in a browser, or host the folder anywhere static.
-There is no build step and no dependency — it's a page, a 200-line EXIF reader,
+Open [`index.html`](index.html) in a browser, or host the folder on any static
+server. No build step and no dependencies. It's a page, a 200-line EXIF reader,
 and nothing else.
 
-Drop a photo in, read what it was leaking, click **Download clean copy**. Your
+Drop a photo in, read what it was leaking, click Download clean copy. Your
 original on disk is never touched.
+
+## How the wipe works
+
+The clean copy gets redrawn from pixels onto a fresh canvas and re-encoded.
+Metadata lives in the file's headers rather than the pixels, so a new encode
+simply has none. No EXIF, no GPS, no embedded thumbnail, no maker notes.
+
+The tradeoff is that a JPEG gets recompressed once, at quality 0.95, and the
+embedded colour profile is dropped along with everything else. For a photo
+you're about to post that's fine. PNGs re-encode losslessly.
 
 ## What it reads
 
-`exif.js` is a deliberately small JPEG EXIF reader. It pulls only the fields that
-actually expose you:
+`exif.js` is a small JPEG EXIF reader that pulls only the fields that actually
+expose you.
 
 | Field | Why it matters |
 |---|---|
-| GPS latitude / longitude | Where the photo was taken — often someone's home |
+| GPS latitude / longitude | Where the photo was taken, often someone's home |
 | Camera make / model | Ties separate photos to the same device |
 | Date taken / modified | When you were there |
 | Editing software | What you used, sometimes your OS |
 
-It is not a full EXIF library on purpose. If a file is malformed it degrades to
-"metadata present" rather than crashing — a privacy tool should never fall over
-on the file you were worried about.
+It isn't a full EXIF library. A malformed file degrades to "metadata present"
+rather than crashing, since a privacy tool falling over on the file you were
+worried about is the worst possible failure.
 
-## Develop
+## Files
 
 ```
-index.html      the whole app + landing page, inline
-exif.js         the EXIF reader (works in browser and Node)
-exif.test.js    node exif.test.js  — builds a JPEG with GPS and reads it back
+index.html      the whole app plus landing page, inline
+exif.js         the EXIF reader, works in browser and Node
+exif.test.js    node exif.test.js, builds a JPEG with GPS and reads it back
 ```
 
 ```bash
 node exif.test.js
 ```
 
-## Limits, stated up front
+## Limits
 
-- **Reads EXIF from JPEG.** PNGs rarely carry EXIF; they're still fully wiped on
-  download, you just won't see a "here's what was in it" readout.
-- **The wipe re-encodes.** That's the mechanism, not a bug — it's why nothing
-  survives. It also means it is not a lossless metadata edit; it's a clean
-  reprint.
-- **It reads the scary fields, not all 400 EXIF tags.** The download strips
-  everything regardless; the on-screen readout just covers what matters.
+Reads EXIF from JPEG. PNGs rarely carry EXIF and are still fully wiped on
+download, you just won't get the "here's what was in it" readout.
+
+The wipe re-encodes. That's the mechanism, which also means it isn't a lossless
+metadata edit.
+
+It reads the fields that matter, not all 400 EXIF tags. The download strips
+everything regardless.
 
 ## More tools
 
-- **[Carryover](https://github.com/cig13zs/carryover)** — AI chat context transfer for ChatGPT, DeepSeek & Grok
-- **[Invisibles](https://github.com/cig13zs/invisibles)** — reveal & strip hidden Unicode from text
-- **[Return Google Cache](https://github.com/cig13zs/return-google-cache)** — put the Cached link back on Google results
-- **[Return 100 Results](https://github.com/cig13zs/return-100-results)** — browse ~100 Google results as one page
+- [Carryover](https://github.com/cig13zs/carryover), AI chat context transfer for ChatGPT, DeepSeek and Grok
+- [Invisibles](https://github.com/cig13zs/invisibles), reveal and strip hidden Unicode from text
+- [Return Google Cache](https://github.com/cig13zs/return-google-cache), put the Cached link back on Google results
+- [Return 100 Results](https://github.com/cig13zs/return-100-results), browse ~100 Google results as one page
 
-All free, all offline, all open source. [More →](https://github.com/cig13zs/About-Me)
-
-MIT licensed. Do what you like with it.
+MIT licensed. [Ko-fi](https://ko-fi.com/jju1s) if it was useful.

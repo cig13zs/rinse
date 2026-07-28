@@ -1,7 +1,6 @@
 /*
- * Hand-builds a JPEG carrying a GPS EXIF block and checks the parser reads it
- * back. If the offset math in exif.js drifts, GPS/Make/Model stop matching and
- * this fails loudly.  Run: node exif.test.js
+ * Hand-builds a JPEG with a GPS EXIF block and reads it back. Catches drift in
+ * the offset math.  Run: node exif.test.js
  */
 var assert = require('assert');
 var parse = require('./exif.js').parse;
@@ -73,4 +72,4 @@ assert.strictEqual(plain.hasExif, false, 'non-jpeg has no exif');
 // A JPEG with no EXIF segment.
 assert.strictEqual(parse(new Uint8Array([0xFF, 0xD8, 0xFF, 0xD9])).hasExif, false, 'jpeg w/o exif');
 
-console.log('ok — all EXIF parser checks passed');
+console.log('ok, all EXIF parser checks passed');
