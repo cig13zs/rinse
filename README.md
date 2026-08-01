@@ -61,10 +61,13 @@ worried about is the worst possible failure.
 index.html      the whole app plus landing page, inline
 exif.js         the EXIF reader, works in browser and Node
 exif.test.js    node exif.test.js, builds a JPEG with GPS and reads it back
+image-policy.js validates file signatures, MIME types, size and dimensions
+image-policy.test.js covers JPEG, PNG, spoofed files and safety limits
 ```
 
 ```bash
 node exif.test.js
+node image-policy.test.js
 ```
 
 ## Limits

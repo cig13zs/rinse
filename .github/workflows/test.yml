@@ -9,3 +9,4 @@ jobs:
         with:
           node-version: '20'
       - run: node exif.test.js
+      - run: node image-policy.test.js
