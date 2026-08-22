@@ -85,7 +85,6 @@ everything regardless.
 
 - [Carryover](https://github.com/cig13zs/carryover), AI chat context transfer for ChatGPT, DeepSeek and Grok
 - [Invisibles](https://github.com/cig13zs/invisibles), reveal and strip hidden Unicode from text
-- [Return Google Cache](https://github.com/cig13zs/return-google-cache), put the Cached link back on Google results
-- [Return 100 Results](https://github.com/cig13zs/return-100-results), browse ~100 Google results as one page
+- [Search Restore](https://github.com/cig13zs/search-restore), add archive links and load more Google results on demand
 
 MIT licensed. [Ko-fi](https://ko-fi.com/jju1s) if it was useful.
