@@ -23,7 +23,7 @@ usually what convinces people to bother.
 ## Use it
 
 Open [`index.html`](index.html) in a browser, or host the folder on any static
-server. No build step and no dependencies. It's a page, a 200-line EXIF reader,
+server. No build step and no dependencies. It's a page, a small metadata reader,
 and nothing else.
 
 Drop a photo in, read what it was leaking, click Download clean copy. Your
