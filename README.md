@@ -52,6 +52,12 @@ to match.
 | Camera make / model | Ties separate photos to the same device |
 | Date taken / modified | When you were there |
 | Editing software | What you used, sometimes your OS |
+| XMP and IPTC | Your name as creator or by-line, city and country, set by Lightroom, Photoshop and photo libraries |
+| PNG text | Comments, and the full prompt and settings that AI image tools write into their PNGs |
+| Data after the image | The video clip in a motion photo, or the depth map or HDR gain map a phone appends |
+
+Colour profiles and similar blocks are listed too, marked harmless, so the size
+of what gets removed adds up.
 
 It isn't a full EXIF library. A malformed file degrades to "metadata present"
 rather than crashing, since a privacy tool falling over on the file you were
@@ -81,8 +87,8 @@ or set the iPhone camera format to Most Compatible.
 The wipe re-encodes. That's the mechanism, which also means it isn't a lossless
 metadata edit.
 
-It reads the fields that matter, not all 400 EXIF tags. The download strips
-everything regardless.
+It reads the fields that matter, not all 400 EXIF tags, and shows compressed
+PNG text only by its name. The download strips everything regardless.
 
 ## More tools
 
