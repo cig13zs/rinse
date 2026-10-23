@@ -343,7 +343,19 @@
         dlBtn.disabled = false;
         dlBtn.textContent = 'Download clean copy';
         after.innerHTML = 'Saved <b>' + esc(name) + '</b> ' + fmtBytes(blob.size) +
-          ', <b>0 bytes of metadata</b>. The original on your disk is untouched.';
+          '. The original on your disk is untouched.';
+        // Read the clean copy back with the same parser, so the claim below is checked, not assumed.
+        blob.arrayBuffer().then(function (buf) {
+          var check = RinseExif.parse(new Uint8Array(buf));
+          var left = check.blocks || [];
+          var personal = check.hasExif || check.gps || left.some(function (b) { return b.personal; });
+          var names = left.map(function (b) { return b.kind === 'icc' ? 'a standard colour profile' : b.label.toLowerCase(); });
+          var extra = left.length ? ' Your browser added ' + names.join(', ') + ' (' +
+            fmtBytes(left.reduce(function (n, b) { return n + b.bytes; }, 0)) + '), which says nothing about you.' : '';
+          after.innerHTML += personal
+            ? ' <b>Warning:</b> the clean copy still carries metadata. Please report this.'
+            : ' Checked: <b>no EXIF, no location, nothing personal</b>.' + esc(extra);
+        }, function () { /* the download already happened; the check is a bonus */ });
       }, type, 0.95);
     };
     img.onerror = function () {

@@ -35,6 +35,11 @@ The clean copy gets redrawn from pixels onto a fresh canvas and re-encoded.
 Metadata lives in the file's headers rather than the pixels, so a new encode
 simply has none. No EXIF, no GPS, no embedded thumbnail, no maker notes.
 
+After the download, Rinse reads the clean copy back with the same parser and
+says what is left. Chrome writes a standard sRGB colour profile into anything
+it encodes; that is the only block you should see, and it says nothing about
+you.
+
 The tradeoff is that a JPEG or WebP gets recompressed once, at quality 0.95,
 and the embedded colour profile is dropped along with everything else. For a
 photo you're about to post that's fine. PNGs re-encode losslessly. A browser
