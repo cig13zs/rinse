@@ -35,14 +35,16 @@ The clean copy gets redrawn from pixels onto a fresh canvas and re-encoded.
 Metadata lives in the file's headers rather than the pixels, so a new encode
 simply has none. No EXIF, no GPS, no embedded thumbnail, no maker notes.
 
-The tradeoff is that a JPEG gets recompressed once, at quality 0.95, and the
-embedded colour profile is dropped along with everything else. For a photo
-you're about to post that's fine. PNGs re-encode losslessly.
+The tradeoff is that a JPEG or WebP gets recompressed once, at quality 0.95,
+and the embedded colour profile is dropped along with everything else. For a
+photo you're about to post that's fine. PNGs re-encode losslessly. A browser
+that can't encode WebP (older Safari) hands back a PNG, and the file is named
+to match.
 
 ## What it reads
 
-`exif.js` is a small JPEG EXIF reader that pulls only the fields that actually
-expose you.
+`exif.js` is a small EXIF reader for JPEG, PNG (`eXIf` chunk) and WebP
+(`EXIF` chunk) that pulls only the fields that actually expose you.
 
 | Field | Why it matters |
 |---|---|
@@ -60,9 +62,9 @@ worried about is the worst possible failure.
 ```
 index.html      the whole app plus landing page, inline
 exif.js         the EXIF reader, works in browser and Node
-exif.test.js    node exif.test.js, builds a JPEG with GPS and reads it back
+exif.test.js    node exif.test.js, builds a JPEG, PNG and WebP with GPS and reads them back
 image-policy.js validates file signatures, MIME types, size and dimensions
-image-policy.test.js covers JPEG, PNG, spoofed files and safety limits
+image-policy.test.js covers JPEG, PNG, WebP, spoofed files and safety limits
 ```
 
 ```bash
@@ -72,8 +74,9 @@ node image-policy.test.js
 
 ## Limits
 
-Reads EXIF from JPEG. PNGs rarely carry EXIF and are still fully wiped on
-download, you just won't get the "here's what was in it" readout.
+Reads EXIF from JPEG, PNG and WebP. HEIC photos straight off an iPhone aren't
+accepted, because most browsers can't decode them. Export them as JPEG first,
+or set the iPhone camera format to Most Compatible.
 
 The wipe re-encodes. That's the mechanism, which also means it isn't a lossless
 metadata edit.

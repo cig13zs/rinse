@@ -107,8 +107,8 @@
 <main id="main">
 <label class="drop" id="drop">
   <div class="big">Drop a photo here, or click to choose</div>
-  <div class="sub" id="drop-help">JPEG or PNG · nothing is uploaded · it all happens on this page</div>
-  <input type="file" id="file" accept="image/jpeg,image/png" aria-describedby="drop-help">
+  <div class="sub" id="drop-help">JPEG, PNG or WebP · nothing is uploaded · it all happens on this page</div>
+  <input type="file" id="file" accept="image/jpeg,image/png,image/webp" aria-describedby="drop-help">
 </label>
 
 <div class="result" id="result" aria-live="polite">
@@ -140,7 +140,7 @@
   <h2>How the wipe works</h2>
   <p class="muted">Rinse draws your photo onto a blank canvas and re-encodes it. Metadata lives in
   the file's headers, not in the pixels, so a fresh encode simply has none. That's also the one
-  tradeoff: JPEGs are re-compressed once (quality kept high), and the embedded colour profile is
+  tradeoff: JPEGs and WebPs are re-compressed once (quality kept high), and the embedded colour profile is
   dropped along with everything else. For a photo you are about to post, that is fine.</p>
 </section>
 
@@ -314,7 +314,7 @@
       c.width = img.naturalWidth; c.height = img.naturalHeight;
       c.getContext('2d').drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
-      var isPng = currentKind === 'png';
+      var type = 'image/' + currentKind;
       c.toBlob(function (blob) {
         if (!blob) {
           dlBtn.disabled = false;
@@ -322,7 +322,9 @@
           after.textContent = 'The browser could not encode a clean copy.';
           return;
         }
-        var name = (current.name || 'photo').replace(/\.[^.]+$/, '') + '-clean.' + (isPng ? 'png' : 'jpg');
+        // A browser that can't encode WebP hands back a PNG; name the file after what it got.
+        var ext = { 'image/png': 'png', 'image/webp': 'webp' }[blob.type] || 'jpg';
+        var name = (current.name || 'photo').replace(/\.[^.]+$/, '') + '-clean.' + ext;
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = name;
@@ -332,7 +334,7 @@
         dlBtn.textContent = 'Download clean copy';
         after.innerHTML = 'Saved <b>' + esc(name) + '</b> ' + fmtBytes(blob.size) +
           ', <b>0 bytes of metadata</b>. The original on your disk is untouched.';
-      }, isPng ? 'image/png' : 'image/jpeg', 0.95);
+      }, type, 0.95);
     };
     img.onerror = function () {
       URL.revokeObjectURL(url);

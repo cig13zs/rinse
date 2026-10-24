@@ -1,6 +1,7 @@
 /*
  * Minimal EXIF reader. Pulls GPS, camera make/model, timestamps and editing
- * software out of a JPEG's APP1 block. Not a full EXIF library.
+ * software out of the EXIF block of a JPEG (APP1), PNG (eXIf chunk) or WebP
+ * (EXIF chunk). Not a full EXIF library.
  *
  * Never throws on malformed input: a truncated file degrades to { hasExif }
  * plus whatever fields parsed, rather than killing the page.
@@ -15,34 +16,67 @@
 
   var TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
 
-  function parse(input) {
-    var out = { hasExif: false, exifBytes: 0, fields: {}, gps: null };
-    try {
-      var bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
-      var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-      if (bytes.length < 4 || view.getUint16(0) !== 0xFFD8) return out; // not JPEG
+  function startsWith(bytes, at, list) {
+    if (at + list.length > bytes.length) return false;
+    for (var i = 0; i < list.length; i++) if (bytes[at + i] !== list[i]) return false;
+    return true;
+  }
+  var EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
 
-      // Walk JPEG segments for an APP1 that begins with "Exif\0\0".
-      var offset = 2, app1 = -1, app1len = 0;
+  // Finds the TIFF block that holds the EXIF data. Returns { format, tiff, size } or a format only.
+  function locate(bytes, view) {
+    if (bytes.length >= 4 && view.getUint16(0) === 0xFFD8) {
+      var offset = 2;
       while (offset + 4 <= bytes.length) {
         if (view.getUint8(offset) !== 0xFF) break;
         var marker = view.getUint8(offset + 1);
         if (marker === 0xD9 || marker === 0xDA) break; // EOI / start-of-scan
         var size = view.getUint16(offset + 2);
-        if (marker === 0xE1 && offset + 10 <= bytes.length &&
-            bytes[offset + 4] === 0x45 && bytes[offset + 5] === 0x78 &&
-            bytes[offset + 6] === 0x69 && bytes[offset + 7] === 0x66 &&
-            bytes[offset + 8] === 0x00 && bytes[offset + 9] === 0x00) {
-          app1 = offset; app1len = size; break;
+        if (marker === 0xE1 && startsWith(bytes, offset + 4, EXIF_HEADER)) {
+          return { format: 'jpeg', tiff: offset + 10, size: size + 2 }; // whole APP1 segment
         }
         offset += 2 + size;
       }
-      if (app1 < 0) return out;
+      return { format: 'jpeg' };
+    }
+    if (startsWith(bytes, 0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) {
+      var p = 8;
+      while (p + 8 <= bytes.length) {
+        var n = view.getUint32(p), type = String.fromCharCode(bytes[p + 4], bytes[p + 5], bytes[p + 6], bytes[p + 7]);
+        if (type === 'eXIf') return { format: 'png', tiff: p + 8, size: n + 12 };
+        if (type === 'IEND') break;
+        p += n + 12;
+      }
+      return { format: 'png' };
+    }
+    if (startsWith(bytes, 0, [0x52, 0x49, 0x46, 0x46]) && startsWith(bytes, 8, [0x57, 0x45, 0x42, 0x50])) {
+      var q = 12;
+      while (q + 8 <= bytes.length) {
+        var len = view.getUint32(q + 4, true), kind = String.fromCharCode(bytes[q], bytes[q + 1], bytes[q + 2], bytes[q + 3]);
+        if (kind === 'EXIF') {
+          // Some writers keep the JPEG-style "Exif\0\0" prefix inside the chunk.
+          return { format: 'webp', tiff: q + 8 + (startsWith(bytes, q + 8, EXIF_HEADER) ? 6 : 0), size: len + 8 + (len & 1) };
+        }
+        q += 8 + len + (len & 1);
+      }
+      return { format: 'webp' };
+    }
+    return { format: 'unknown' };
+  }
+
+  function parse(input) {
+    var out = { format: 'unknown', hasExif: false, exifBytes: 0, fields: {}, gps: null };
+    try {
+      var bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+      var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      var found = locate(bytes, view);
+      out.format = found.format;
+      if (found.tiff === undefined) return out;
 
       out.hasExif = true;
-      out.exifBytes = app1len + 2; // whole APP1 segment including the FFE1 marker
+      out.exifBytes = found.size;
 
-      var tiff = app1 + 10; // skip FF E1 <len:2> "Exif\0\0"
+      var tiff = found.tiff;
       if (tiff + 8 > bytes.length) return out;
       var le = view.getUint16(tiff) === 0x4949; // "II" little-endian, else "MM"
       if (view.getUint16(tiff + 2, le) !== 0x002A) return out; // TIFF magic 42
