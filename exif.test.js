@@ -127,6 +127,58 @@ checkFields(parse(webp(concat([Uint8Array.from([0x45, 0x78, 0x69, 0x66, 0, 0]), 
   for (var cut = 0; cut < b.length; cut += 7) assert.doesNotThrow(function () { parse(b.subarray(0, cut)); });
 });
 
+// Other metadata blocks: XMP, IPTC, colour profile, comment and data after the image.
+function seg(marker, data) {
+  var c = new Uint8Array(4 + data.length), dv = new DataView(c.buffer);
+  dv.setUint16(0, 0xFF00 | marker); dv.setUint16(2, data.length + 2);
+  c.set(data, 4);
+  return c;
+}
+function bytesOf(str) { return Uint8Array.from(Buffer.from(str, 'utf8')); }
+var xmp = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF><rdf:Description photoshop:City="Quezon City" xmp:CreatorTool="Lightroom">' +
+  '<dc:creator><rdf:Seq><rdf:li>Juan dela Cruz</rdf:li></rdf:Seq></dc:creator></rdf:Description></rdf:RDF></x:xmpmeta>';
+function iim(dataset, text) { var t = bytesOf(text); return concat([Uint8Array.from([0x1C, 2, dataset, t.length >> 8, t.length & 255]), t]); }
+var records = concat([iim(80, 'J. Cruz'), iim(101, 'Philippines')]);
+var res = new Uint8Array(12 + records.length + (records.length & 1)), rdv = new DataView(res.buffer);
+res.set(bytesOf('8BIM')); rdv.setUint16(4, 0x0404); rdv.setUint32(8, records.length); res.set(records, 12); // empty name: 2 bytes
+var scan = Uint8Array.from([0xFF, 0xDA, 0x00, 0x02, 0x12, 0xFF, 0x00, 0x34, 0xFF, 0xD9]);
+var video = concat([Uint8Array.from([0, 0, 0, 24]), bytesOf('ftypmp42'), new Uint8Array(200)]);
+var full = concat([Uint8Array.from([0xFF, 0xD8]),
+  seg(0xE1, concat([bytesOf('http://ns.adobe.com/xap/1.0/\0'), bytesOf(xmp)])),
+  seg(0xED, concat([bytesOf('Photoshop 3.0\0'), res])),
+  seg(0xE2, concat([bytesOf('ICC_PROFILE\0'), new Uint8Array(40)])),
+  seg(0xFE, bytesOf('shot from my balcony')),
+  scan, video]);
+var rb = parse(full), kinds = rb.blocks.map(function (b) { return b.kind; });
+assert.deepStrictEqual(kinds, ['xmp', 'iptc', 'icc', 'comment', 'trailer'], 'jpeg blocks');
+assert.deepStrictEqual(rb.blocks[0].info, { Creator: 'Juan dela Cruz', City: 'Quezon City', 'Made with': 'Lightroom' });
+assert.deepStrictEqual(rb.blocks[1].info, { 'By-line': 'J. Cruz', Country: 'Philippines' });
+assert.strictEqual(rb.blocks[2].personal, false, 'colour profile is not personal');
+assert.strictEqual(rb.blocks[3].info.Text, 'shot from my balcony');
+assert.strictEqual(rb.blocks[4].bytes, video.length);
+assert.strictEqual(rb.blocks[4].info.Contains, 'a video clip (motion photo)');
+assert.strictEqual(rb.hasExif, false, 'no EXIF block in this file');
+
+var aiPng = concat([pngSig, chunk('IHDR', new Uint8Array(13)),
+  chunk('tEXt', bytesOf('parameters\0a cat on a roof, seed 42')),
+  chunk('iTXt', concat([bytesOf('XML:com.adobe.xmp\0\0\0\0\0'), bytesOf(xmp)])),
+  chunk('iCCP', new Uint8Array(10)), chunk('IDAT', new Uint8Array(4)), chunk('IEND', new Uint8Array(0))]);
+var rpb = parse(aiPng).blocks;
+assert.deepStrictEqual(rpb.map(function (b) { return b.label; }), ['Text: parameters', 'XMP (editing and library data)', 'Colour profile']);
+assert.strictEqual(rpb[0].info.Text, 'a cat on a roof, seed 42');
+assert.strictEqual(rpb[1].info.Creator, 'Juan dela Cruz');
+
+var webpXmp = (function () {
+  var body = concat([bytesOf('WEBP'), riffChunk('VP8X', new Uint8Array(10)), riffChunk('XMP ', bytesOf(xmp))]);
+  var head = new Uint8Array(8); head.set(bytesOf('RIFF')); new DataView(head.buffer).setUint32(4, body.length, true);
+  return concat([head, body]);
+}());
+assert.strictEqual(parse(webpXmp).blocks[0].info.City, 'Quezon City');
+[full, aiPng, webpXmp].forEach(function (b) {
+  for (var cut = 0; cut < b.length; cut += 5) assert.doesNotThrow(function () { parse(b.subarray(0, cut)); });
+});
+assert.deepStrictEqual(parse(buildJpegWithExif()).blocks, [], 'plain EXIF jpeg has no other blocks');
+
 // A plain (non-JPEG) buffer must degrade, not throw.
 var plain = parse(new Uint8Array([1, 2, 3, 4, 5, 6]));
 assert.strictEqual(plain.hasExif, false, 'non-jpeg has no exif');

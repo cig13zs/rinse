@@ -257,9 +257,14 @@
     rows.innerHTML = '';
     gpsEl.innerHTML = '';
     var f = info.fields || {};
-    var hasAny = info.hasExif && (info.gps || Object.keys(f).length);
+    var blocks = info.blocks || [];
+    var hasAny = (info.hasExif && (info.gps || Object.keys(f).length)) ||
+      blocks.some(function (b) { return b.personal; });
+    var placeInBlocks = blocks.some(function (b) {
+      return b.info && (b.info.City || b.info.Country || b.info.Location || b.info['GPS latitude']);
+    });
 
-    if (info.gps) {
+    if (info.gps || placeInBlocks) {
       verdict.className = 'verdict bad';
       verdict.textContent = 'This photo has your location in it.';
     } else if (hasAny) {
@@ -267,7 +272,7 @@
       verdict.textContent = 'This photo carries hidden metadata.';
     } else {
       verdict.className = 'verdict good';
-      verdict.textContent = info.hasExif ? 'Only harmless metadata found.' : 'No EXIF metadata found.';
+      verdict.textContent = info.hasExif || blocks.length ? 'Only harmless metadata found.' : 'No hidden metadata found.';
     }
 
     if (info.gps) {
@@ -286,8 +291,13 @@
     order.forEach(function (k) {
       if (f[k] !== undefined && f[k] !== '') addRow(labels[k], f[k]);
     });
+    blocks.forEach(function (b) {
+      var parts = Object.keys(b.info).map(function (k) { return k + ': ' + b.info[k]; });
+      addRow(b.label, fmtBytes(b.bytes) + (parts.length ? ' · ' + parts.join(' · ') : ''));
+    });
     addRow('File size', fmtBytes(file.size));
-    if (info.hasExif) addRow('Metadata block', fmtBytes(info.exifBytes) + ', will be removed');
+    var total = (info.hasExif ? info.exifBytes : 0) + blocks.reduce(function (n, b) { return n + b.bytes; }, 0);
+    if (total) addRow('Metadata to remove', fmtBytes(total));
   }
 
   function addRow(k, v) {
@@ -333,7 +343,19 @@
         dlBtn.disabled = false;
         dlBtn.textContent = 'Download clean copy';
         after.innerHTML = 'Saved <b>' + esc(name) + '</b> ' + fmtBytes(blob.size) +
-          ', <b>0 bytes of metadata</b>. The original on your disk is untouched.';
+          '. The original on your disk is untouched.';
+        // Read the clean copy back with the same parser, so the claim below is checked, not assumed.
+        blob.arrayBuffer().then(function (buf) {
+          var check = RinseExif.parse(new Uint8Array(buf));
+          var left = check.blocks || [];
+          var personal = check.hasExif || check.gps || left.some(function (b) { return b.personal; });
+          var names = left.map(function (b) { return b.kind === 'icc' ? 'a standard colour profile' : b.label.toLowerCase(); });
+          var extra = left.length ? ' Your browser added ' + names.join(', ') + ' (' +
+            fmtBytes(left.reduce(function (n, b) { return n + b.bytes; }, 0)) + '), which says nothing about you.' : '';
+          after.innerHTML += personal
+            ? ' <b>Warning:</b> the clean copy still carries metadata. Please report this.'
+            : ' Checked: <b>no EXIF, no location, nothing personal</b>.' + esc(extra);
+        }, function () { /* the download already happened; the check is a bonus */ });
       }, type, 0.95);
     };
     img.onerror = function () {

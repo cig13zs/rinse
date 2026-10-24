@@ -23,7 +23,7 @@ usually what convinces people to bother.
 ## Use it
 
 Open [`index.html`](index.html) in a browser, or host the folder on any static
-server. No build step and no dependencies. It's a page, a 200-line EXIF reader,
+server. No build step and no dependencies. It's a page, a small metadata reader,
 and nothing else.
 
 Drop a photo in, read what it was leaking, click Download clean copy. Your
@@ -34,6 +34,11 @@ original on disk is never touched.
 The clean copy gets redrawn from pixels onto a fresh canvas and re-encoded.
 Metadata lives in the file's headers rather than the pixels, so a new encode
 simply has none. No EXIF, no GPS, no embedded thumbnail, no maker notes.
+
+After the download, Rinse reads the clean copy back with the same parser and
+says what is left. Chrome writes a standard sRGB colour profile into anything
+it encodes; that is the only block you should see, and it says nothing about
+you.
 
 The tradeoff is that a JPEG or WebP gets recompressed once, at quality 0.95,
 and the embedded colour profile is dropped along with everything else. For a
@@ -52,6 +57,12 @@ to match.
 | Camera make / model | Ties separate photos to the same device |
 | Date taken / modified | When you were there |
 | Editing software | What you used, sometimes your OS |
+| XMP and IPTC | Your name as creator or by-line, city and country, set by Lightroom, Photoshop and photo libraries |
+| PNG text | Comments, and the full prompt and settings that AI image tools write into their PNGs |
+| Data after the image | The video clip in a motion photo, or the depth map or HDR gain map a phone appends |
+
+Colour profiles and similar blocks are listed too, marked harmless, so the size
+of what gets removed adds up.
 
 It isn't a full EXIF library. A malformed file degrades to "metadata present"
 rather than crashing, since a privacy tool falling over on the file you were
@@ -81,8 +92,8 @@ or set the iPhone camera format to Most Compatible.
 The wipe re-encodes. That's the mechanism, which also means it isn't a lossless
 metadata edit.
 
-It reads the fields that matter, not all 400 EXIF tags. The download strips
-everything regardless.
+It reads the fields that matter, not all 400 EXIF tags, and shows compressed
+PNG text only by its name. The download strips everything regardless.
 
 ## More tools
 

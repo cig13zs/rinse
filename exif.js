@@ -64,13 +64,138 @@
     return { format: 'unknown' };
   }
 
+  function latin(bytes, start, end) {
+    var s = '';
+    end = Math.min(end, bytes.length);
+    for (var i = start; i < end; i++) s += String.fromCharCode(bytes[i]);
+    return s;
+  }
+  function utf8(bytes, start, end) {
+    var sub = bytes.subarray(start, Math.min(end, bytes.length));
+    try { return new TextDecoder('utf-8').decode(sub); } catch (_) { return latin(sub, 0, sub.length); }
+  }
+  function clip(s, n) {
+    s = String(s).replace(/\s+/g, ' ').trim();
+    return s.length > n ? s.slice(0, n - 1) + '\u2026' : s;
+  }
+
+  // Who and where from an XMP packet: the fields an editor or a photo library fills in.
+  var XMP_FIELDS = [['dc:creator', 'Creator'], ['photoshop:City', 'City'], ['photoshop:State', 'Region'],
+    ['photoshop:Country', 'Country'], ['Iptc4xmpCore:Location', 'Location'], ['exif:GPSLatitude', 'GPS latitude'],
+    ['exif:GPSLongitude', 'GPS longitude'], ['xmp:CreatorTool', 'Made with']];
+  function readXmp(xml) {
+    var info = {};
+    XMP_FIELDS.forEach(function (f) {
+      var attr = new RegExp(f[0] + '\\s*=\\s*"([^"]*)"').exec(xml);
+      var elem = new RegExp('<' + f[0] + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + f[0] + '>').exec(xml);
+      var v = attr ? attr[1] : elem ? elem[1].replace(/<[^>]*>/g, ' ') : '';
+      v = clip(v.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'), 80);
+      if (v) info[f[1]] = v;
+    });
+    return info;
+  }
+
+  // IPTC-IIM records inside a Photoshop APP13 block: by-line and place names.
+  var IPTC_FIELDS = { 80: 'By-line', 90: 'City', 95: 'Region', 101: 'Country', 116: 'Copyright' };
+  function readIptc(bytes, view, start, end) {
+    var info = {}, p = start;
+    while (p + 12 <= end) {
+      if (latin(bytes, p, p + 4) !== '8BIM') break;
+      var id = view.getUint16(p + 4), nameLen = bytes[p + 6];
+      var q = p + 6 + ((nameLen + 2) & ~1); // Pascal name, padded to even length
+      if (q + 4 > end) break;
+      var size = view.getUint32(q), data = q + 4;
+      if (id === 0x0404) {
+        var r = data, stop = Math.min(data + size, end);
+        while (r + 5 <= stop && bytes[r] === 0x1C) {
+          var len = view.getUint16(r + 3);
+          var label = bytes[r + 1] === 2 && IPTC_FIELDS[bytes[r + 2]];
+          if (label && !info[label]) info[label] = clip(utf8(bytes, r + 5, r + 5 + len), 80);
+          r += 5 + len;
+        }
+      }
+      p = data + size + (size & 1);
+    }
+    return info;
+  }
+
+  // Every metadata block in the file besides the EXIF fields: what it is, its size and anything personal in it.
+  function scanBlocks(bytes, view, format) {
+    var blocks = [];
+    function add(kind, label, size, info, personal) {
+      info = info || {};
+      blocks.push({ kind: kind, label: label, bytes: size, info: info,
+        personal: personal === undefined ? Object.keys(info).length > 0 : personal });
+    }
+    if (format === 'jpeg') {
+      var o = 2, sos = -1;
+      while (o + 4 <= bytes.length && bytes[o] === 0xFF) {
+        var m = bytes[o + 1];
+        if (m === 0xD9) break;
+        if (m === 0xDA) { sos = o; break; }
+        var size = view.getUint16(o + 2), body = o + 4, end = Math.min(o + 2 + size, bytes.length);
+        var head = latin(bytes, body, Math.min(body + 35, end));
+        if (m === 0xE1 && head.indexOf('http://ns.adobe.com/xap/1.0/\0') === 0) add('xmp', 'XMP (editing and library data)', size + 2, readXmp(utf8(bytes, body + 29, end)));
+        else if (m === 0xE1 && head.indexOf('http://ns.adobe.com/xmp/extension/') === 0) add('xmp', 'Extended XMP', size + 2, readXmp(utf8(bytes, body, end)));
+        else if (m === 0xED && head.indexOf('Photoshop 3.0\0') === 0) add('iptc', 'IPTC (captions and credits)', size + 2, readIptc(bytes, view, body + 14, end));
+        else if (m === 0xE2 && head.indexOf('ICC_PROFILE\0') === 0) add('icc', 'Colour profile', size + 2, {}, false);
+        else if (m === 0xE2 && head.indexOf('MPF\0') === 0) add('mpf', 'Multi-picture index (MPF)', size + 2, {}, false);
+        else if (m === 0xFE) add('comment', 'Comment', size + 2, { Text: clip(utf8(bytes, body, end), 80) });
+        o += 2 + size;
+      }
+      if (sos >= 0) {
+        // Entropy-coded data escapes 0xFF, so the first FF D9 after the scan header is the end of the image.
+        for (var i = sos + 2; i + 1 < bytes.length; i++) {
+          if (bytes[i] === 0xFF && bytes[i + 1] === 0xD9) {
+            var extra = bytes.length - (i + 2);
+            if (extra > 64) {
+              var tail = latin(bytes, i + 2, Math.min(bytes.length, i + 2 + 65536));
+              var what = tail.indexOf('ftyp') >= 0 ? 'a video clip (motion photo)' : tail.indexOf('\xFF\xD8') >= 0 ? 'more images (a depth map, HDR gain map or preview)' : 'unknown data';
+              add('trailer', 'Data after the image', extra, { Contains: what }, true);
+            }
+            break;
+          }
+        }
+      }
+    } else if (format === 'png') {
+      var p = 8;
+      while (p + 8 <= bytes.length) {
+        var n = view.getUint32(p), type = latin(bytes, p + 4, p + 8), d = p + 8, e = Math.min(d + n, bytes.length);
+        if (type === 'tEXt' || type === 'iTXt' || type === 'zTXt') {
+          var z = d; while (z < e && bytes[z] !== 0) z++;
+          var key = latin(bytes, d, z), text = '';
+          if (type === 'tEXt') text = latin(bytes, z + 1, e);
+          else if (type === 'iTXt' && bytes[z + 1] === 0) {
+            var t = z + 3; while (t < e && bytes[t] !== 0) t++; t++; while (t < e && bytes[t] !== 0) t++;
+            text = utf8(bytes, t + 1, e);
+          }
+          if (key === 'XML:com.adobe.xmp') add('xmp', 'XMP (editing and library data)', n + 12, readXmp(text));
+          else add('text', 'Text: ' + clip(key, 40), n + 12, text ? { Text: clip(text, 80) } : { Text: '(compressed)' });
+        } else if (type === 'iCCP') add('icc', 'Colour profile', n + 12, {}, false);
+        else if (type === 'tIME') add('time', 'Last-modified time', n + 12, {}, false);
+        if (type === 'IEND') break;
+        p += n + 12;
+      }
+    } else if (format === 'webp') {
+      var q = 12;
+      while (q + 8 <= bytes.length) {
+        var len = view.getUint32(q + 4, true), kind = latin(bytes, q, q + 4);
+        if (kind === 'XMP ') add('xmp', 'XMP (editing and library data)', len + 8, readXmp(utf8(bytes, q + 8, q + 8 + len)));
+        else if (kind === 'ICCP') add('icc', 'Colour profile', len + 8, {}, false);
+        q += 8 + len + (len & 1);
+      }
+    }
+    return blocks;
+  }
+
   function parse(input) {
-    var out = { format: 'unknown', hasExif: false, exifBytes: 0, fields: {}, gps: null };
+    var out = { format: 'unknown', hasExif: false, exifBytes: 0, fields: {}, gps: null, blocks: [] };
     try {
       var bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
       var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       var found = locate(bytes, view);
       out.format = found.format;
+      try { out.blocks = scanBlocks(bytes, view, found.format); } catch (_) { /* keep the EXIF readout */ }
       if (found.tiff === undefined) return out;
 
       out.hasExif = true;
